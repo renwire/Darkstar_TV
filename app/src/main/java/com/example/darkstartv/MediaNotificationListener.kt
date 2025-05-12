@@ -9,8 +9,8 @@ class MediaNotificationListener : NotificationListenerService() {
         private const val TAG = "MediaNotifyListener"
         private val currentMediaNotifications = mutableMapOf<String, StatusBarNotification>()
         private val MEDIA_APP_KEYWORDS = listOf(
-            "spotify","music","pandora","deezer","tidal","plexamp",
-            "soundcloud","youtube","vlc","player","radio","podcast"
+            "spotify","music","pandora","prime","disney","plexamp",
+            "netflix","hulu","hbo","amazon","youtube","vlc","player","plex","podcast"
         )
     }
 
