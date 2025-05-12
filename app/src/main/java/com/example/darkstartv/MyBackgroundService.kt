@@ -119,39 +119,81 @@ class MyBackgroundService : Service() {
         }
 
         if (controllers.isNullOrEmpty()) {
-            Log.i("DarkstarService", "🔄 No active media sessions")
+            Log.i("DarkstarService", "🔄 No active media sessions, falling back to notifications")
+
+            // Check media notifications as a fallback
+            MediaNotificationListener.currentMediaNotifications.forEach { (pkg, sbn) ->
+                val notif = sbn.notification
+                val title = notif.extras?.getString(android.app.Notification.EXTRA_TITLE)
+                val text = notif.extras?.getString(android.app.Notification.EXTRA_TEXT)
+
+                // Handle Plex-specific metadata
+                val plexTitle = if (pkg.contains("plexapp")) notif.extras?.getString("android.title") else null
+                val plexText = if (pkg.contains("plexapp")) notif.extras?.getString("android.text") else null
+
+                val finalTitle = plexTitle ?: title
+                val finalText = plexText ?: text
+
+                if (!finalTitle.isNullOrBlank() || !finalText.isNullOrBlank()) {
+                    Log.i("DarkstarService", "🎵 From Notifications! $finalTitle — $finalText (via $pkg)")
+
+                    // Send to API
+                    sendNowPlayingToApi(finalTitle ?: "Unknown", finalText ?: "Unknown", pkg)
+                    return // Process one valid notification
+                }
+            }
+
+            Log.i("DarkstarService", "🔄 No media notifications found")
             return
         }
 
         for (ctrl in controllers) {
-            val pkg    = ctrl.packageName
-            val meta   = ctrl.metadata ?: continue
-            val title  = meta.getString(MediaMetadata.METADATA_KEY_TITLE)  ?: continue
-            val artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST) ?: continue
+            val pkg = ctrl.packageName
+            val meta = ctrl.metadata ?: continue
 
-            // Only send if it actually changed (title, artist, or source)
-            if (title != lastTitle ||
-                artist != lastArtist ||
-                pkg != lastSource) {
+            var title: String? = null
+            var artist: String? = null
 
-                lastTitle  = title
+            // Extract standard metadata (Music Apps)
+            title = meta.getString(MediaMetadata.METADATA_KEY_TITLE)
+            artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST)
+
+            // Handle Plex-specific metadata
+            if (pkg == "com.plexapp.android") {
+                title = meta.getString("android.title") ?: title
+                artist = meta.getString("android.text") ?: artist
+            }
+
+            // Check if metadata was extracted
+            if (title.isNullOrBlank()) {
+                Log.i("DarkstarService", "🔄 $pkg: Sessions found but no valid metadata available")
+                continue
+            }
+
+            // Only send updates if metadata or source changed
+            if (title != lastTitle || artist != lastArtist || pkg != lastSource) {
+                lastTitle = title
                 lastArtist = artist
                 lastSource = pkg
 
-                Log.i("DarkstarService", "🎵 Changed! $title — $artist (via $pkg)")
+                Log.i(
+                    "DarkstarService",
+                    "🎵 Changed! $title — ${artist ?: "Unknown"} (via $pkg)"
+                )
+
                 sendNowPlayingToApi(title, artist, pkg)
             }
-            return  // done after first valid session
+
+            return // Process one valid session
         }
 
         Log.i("DarkstarService", "🔄 Sessions found but no metadata available")
     }
-
     /**
      * Posts a simple JSON payload to your endpoint.
      * Replace API_URL with your real URL.
      */
-    private fun sendNowPlayingToApi(title: String, artist: String, source: String) {
+    private fun sendNowPlayingToApi(title: String, artist: String?, source: String) {
         Thread {
             try {
                 val apiUrl = URL(urlSet)
@@ -163,9 +205,17 @@ class MyBackgroundService : Service() {
                 }
 
                 val payload = JSONObject().apply {
-                    put("Title", title)
-                    put("Artist", artist)
-                    put("Source", source)
+                    if (source == "com.plexapp.android") {
+                        // Plex-specific handling
+                        put("Title", title)
+                        put("Year", artist ?: "Unknown") // "artist" is actually the year in Plex
+                        put("Source", source)
+                    } else {
+                        // Standard handling
+                        put("Title", title)
+                        put("Artist", artist ?: "Unknown") // Safeguard against null artists
+                        put("Source", source)
+                    }
                 }.toString()
 
                 conn.outputStream.use { it.write(payload.toByteArray(Charsets.UTF_8)) }
