@@ -208,7 +208,7 @@ class MyBackgroundService : Service() {
                     if (source == "com.plexapp.android") {
                         // Plex-specific handling
                         put("Title", title)
-                        put("Year", artist ?: "Unknown") // "artist" is actually the year in Plex
+                        put("Artist", artist ?: "Unknown") // "artist" is actually the year in Plex
                         put("Source", source)
                     } else {
                         // Standard handling
