@@ -242,12 +242,21 @@ class MyBackgroundService : Service() {
         }
     }
 
-    private fun buildNotification(): Notification =
-        Notification.Builder(this, CHANNEL_ID)
-            .setContentTitle("Service Running")
-            .setContentText("Darkstar running")
-            .setSmallIcon(android.R.drawable.ic_popup_reminder)
-            .build()
+    private fun buildNotification(): Notification {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+                .setContentTitle("Service Running")
+                .setContentText("Darkstar running")
+                .setSmallIcon(android.R.drawable.ic_popup_reminder)
+                .build()
+        } else {
+            Notification.Builder(this)
+                .setContentTitle("Service Running")
+                .setContentText("Darkstar running")
+                .setSmallIcon(android.R.drawable.ic_popup_reminder)
+                .build()
+        }
+    }
 
     companion object {
         private const val NOTIFICATION_ID = 1
