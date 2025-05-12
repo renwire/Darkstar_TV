@@ -21,6 +21,7 @@ import java.net.URL
 
 class MyBackgroundService : Service() {
 
+
     private val urlSet = "http://192.168.0.10:5279/nowplaying" //set to your endpoint for the request
     //private val urlSet = "https://example.com/nowplaying" //you can also use https
     private val secretKey = "Key_Goes_Here" //this can be removed in sendNowPlayingToApi look for the comment like this
@@ -159,7 +160,7 @@ class MyBackgroundService : Service() {
             artist = meta.getString(MediaMetadata.METADATA_KEY_ARTIST)
 
             // Handle Plex-specific metadata
-            if (pkg == "com.plexapp.android") {
+            if (title.isNullOrBlank()) {
                 title = meta.getString("android.title") ?: title
                 artist = meta.getString("android.text") ?: artist
             }
